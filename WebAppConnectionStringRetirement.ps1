@@ -55,26 +55,31 @@ catch {
 
 ### Importing WebApps Configuration using KQL and Resource Graph
 $WebAppsList = Search-AzGraph -Query "resources | where type =~ 'Microsoft.Web/sites'" -UseTenantScope
+$WebAppsList = $WebAppsList | Sort-Object -Property subscriptionId
 $FixRequired = @()
 
 ### Testing WebApps
 foreach ($WebApp in $WebAppsList)
 {
+    $WebAppInsight = $null
+
     $TempSub = get-azcontext | select-object Subscription | out-null
-    if ($WebApp.subscription -ne $TempSub.subscription.id)
+    if ($WebApp.subscriptionId -ne $TempSub.subscription.id)
     {
-        set-AzContext -Subscription $Entry.Subscription | out-null
+        set-AzContext -Subscription $WebApp.SubscriptionId | out-null
     }
 
     $resourceGroupName = $WebApp.resourceGroup
     $webAppName = $WebApp.name
     $WebAppInsight = ((Get-AzWebApp -ResourceGroupName $resourceGroupName -Name $webAppName).Siteconfig.appsettings | where name -eq  "APPLICATIONINSIGHTS_CONNECTION_STRING").value
 
-    if ($WebAppInsight -notlike "*=*")
+    if ($WebAppInsight)
     {
-        $FixRequired += $WebApp
+        if ($WebAppInsight -notlike "*=*")
+        {
+            $FixRequired += $WebApp
+        }
     }
-
 }
 
 ### Exporting Log to CSV
