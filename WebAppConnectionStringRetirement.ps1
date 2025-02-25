@@ -88,7 +88,7 @@ Write-Host "=====================================================" -ForegroundCo
 Write-Host "Default Export Path: C:\temp (Type Enter for default)" -ForegroundColor Yellow
 Write-Host "=====================================================" -ForegroundColor Yellow
 $CSVPath = Read-Host "Enter the path for the CSV File" -erroraction 'silentlycontinue'
-if (-not $CSVFile)
+if (-not $CSVPath)
 {
     $CSVPath = "c:\temp"
     if (!(Test-Path $CSVPath))
