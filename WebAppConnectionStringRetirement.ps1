@@ -101,6 +101,6 @@ if (-not $CSVPath)
 Write-Host "=========================" -ForegroundColor Green
 Write-Host "Pringing log information:" 
 Write-Host "=========================" -ForegroundColor Green
-$LOG | ft
+$FixRequired | ft
 #exporting results to CSV:
-$LOG | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_WebApp_Insights_ConnectionString.csv" -NoTypeInformation
+$FixRequired | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_WebApp_Insights_ConnectionString.csv" -NoTypeInformation
