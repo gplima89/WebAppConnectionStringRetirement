@@ -28,6 +28,9 @@ YOU ARE FREE TO REUSE AND/OR MODIFY THE CODE TO FIT YOUR NEEDS
 
 ### Testing if required modules can be imported
 try {
+    Write-Host "===============================" -ForegroundColor Green
+    Write-Host " Imported Az.Accounts Moduele !" -ForegroundColor Green
+    Write-Host "===============================" -ForegroundColor Green
     import-Module Az.Accounts -force
 }
 catch {
@@ -35,6 +38,9 @@ catch {
     exit
 }
 try {
+    Write-Host "==================================" -ForegroundColor Green
+    Write-Host " Imported Az.ResourceGraph Module!" -ForegroundColor Green
+    Write-Host "==================================" -ForegroundColor Green
     import-Module Az.ResourceGraph -force
 }
 catch {
