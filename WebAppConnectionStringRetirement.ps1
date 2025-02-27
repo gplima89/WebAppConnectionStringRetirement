@@ -67,6 +67,9 @@ catch {
 }
 
 ### Importing AppInsights Configuration using KQL and Resource Graph
+Write-Host "===========================================" -ForegroundColor Green
+Write-Host "Importing WebApps info using Resource Graph" -ForegroundColor Green
+Write-Host "===========================================" -ForegroundColor Green
 $WebAppList = Search-AzGraph -Query "resources | where type =~ 'microsoft.web/sites'" -UseTenantScope -first 1000
 $WebAppList = $WebAppList | Sort-Object -Property subscriptionId
 $FixRequired = @()
@@ -120,7 +123,7 @@ if ($FixRequired.Count -eq 0)
 
     # Printing results
     Write-Host "=========================" -ForegroundColor Green
-    Write-Host "Pringing log information:" 
+    Write-Host "Printing log information:" 
     Write-Host "=========================" -ForegroundColor Green
     $FixRequired | ft
     #exporting results to CSV:
