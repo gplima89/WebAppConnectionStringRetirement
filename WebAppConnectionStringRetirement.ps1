@@ -26,6 +26,22 @@ YOU ARE FREE TO REUSE AND/OR MODIFY THE CODE TO FIT YOUR NEEDS
 //-----------------------------------------------------------------------
 #>
 
+### Testing if required modules can be imported
+try {
+    import-Module Az.Accounts -force
+}
+catch {
+    Write-Host "Failed to import the Az.Accounts module. Error details: $($_.Exception.Message)" -ForegroundColor Red
+    exit
+}
+try {
+    import-Module Az.ResourceGraph -force
+}
+catch {
+    Write-Host "Failed to import the Az.ResourceGraph module. Error details: $($_.Exception.Message)" -ForegroundColor Red
+    exit
+}
+
 ### Connecting to Azure
 try {
     # Prompt the user to connect to Azure
@@ -44,22 +60,13 @@ catch {
     exit
 }
 
-### Testing if required modules can be imported
-try {
-    import-Module Az.Websites -force
-}
-catch {
-    Write-Host "Failed to import the Az.Websites module. Error details: $($_.Exception.Message)" -ForegroundColor Red
-    exit
-}
-
-### Importing WebApps Configuration using KQL and Resource Graph
-$WebAppsList = Search-AzGraph -Query "resources | where type =~ 'Microsoft.Web/sites'" -UseTenantScope
-$WebAppsList = $WebAppsList | Sort-Object -Property subscriptionId
+### Importing AppInsights Configuration using KQL and Resource Graph
+$AppInsightsList = Search-AzGraph -Query "resources | where type =~ 'microsoft.insights/components'" -UseTenantScope
+$AppInsightsList = $AppInsightsList | Sort-Object -Property subscriptionId
 $FixRequired = @()
 
-### Testing WebApps
-foreach ($WebApp in $WebAppsList)
+### Testing AppInsights
+foreach ($AppInsight in $AppInsightsList)
 {
     $WebAppInsight = $null
 
@@ -71,13 +78,16 @@ foreach ($WebApp in $WebAppsList)
 
     $resourceGroupName = $WebApp.resourceGroup
     $webAppName = $WebApp.name
-    $WebAppInsight = ((Get-AzWebApp -ResourceGroupName $resourceGroupName -Name $webAppName).Siteconfig.appsettings | where name -eq  "APPLICATIONINSIGHTS_CONNECTION_STRING").value
+    $WebAppInsight = ((Get-AzWebApp -ResourceGroupName $resourceGroupName -Name $webAppName).Siteconfig.appsettings).value
 
     if ($WebAppInsight)
     {
-        if ($WebAppInsight -notlike "*=*")
+        foreach ($VariableConf in $WebAppInsight)
         {
-            $FixRequired += $WebApp
+            if ($VariableConf -like "*InstrumentationKey*" -and $VariableConf -notlike "*http*")
+            {
+                $FixRequired += $WebApp | select-object name,resourceGroup,location,Tags,@{Name="ConnectionString"; Expression={($WebApp | Select-Object -ExpandProperty Siteconfig | Select-Object -ExpandProperty appsettings | where name -like "*CONNECTION*").value}},id
+            }
         }
     }
 }
@@ -103,4 +113,4 @@ Write-Host "Pringing log information:"
 Write-Host "=========================" -ForegroundColor Green
 $FixRequired | ft
 #exporting results to CSV:
-$FixRequired | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_WebApp_Insights_ConnectionString.csv" -NoTypeInformation
+$FixRequired | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_AppInsight_Insights_ConnectionString.csv" -NoTypeInformation
