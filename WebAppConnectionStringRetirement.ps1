@@ -61,12 +61,12 @@ catch {
 }
 
 ### Importing AppInsights Configuration using KQL and Resource Graph
-$AppInsightsList = Search-AzGraph -Query "resources | where type =~ 'microsoft.insights/components'" -UseTenantScope
-$AppInsightsList = $AppInsightsList | Sort-Object -Property subscriptionId
+$WebAppList = Search-AzGraph -Query "resources | where type =~ 'microsoft.web/sites'" -UseTenantScope -first 1000
+$WebAppList = $WebAppList | Sort-Object -Property subscriptionId
 $FixRequired = @()
 
 ### Testing AppInsights
-foreach ($AppInsight in $AppInsightsList)
+foreach ($webapp in $WebAppList)
 {
     $WebAppInsight = $null
 
@@ -76,41 +76,47 @@ foreach ($AppInsight in $AppInsightsList)
         set-AzContext -Subscription $WebApp.SubscriptionId | out-null
     }
 
-    $resourceGroupName = $WebApp.resourceGroup
-    $webAppName = $WebApp.name
-    $WebAppInsight = ((Get-AzWebApp -ResourceGroupName $resourceGroupName -Name $webAppName).Siteconfig.appsettings).value
+    $resourceGroupName = $webapp.resourceGroup
+    $webAppName = $webapp.name
+    $WebAppInsight = Get-AzWebApp -ResourceGroupName $resourceGroupName -Name $webAppName
+    $SiteConf = (($WebAppInsight).Siteconfig.appsettings).value
 
-    if ($WebAppInsight)
+    if ($SiteConf)
     {
-        foreach ($VariableConf in $WebAppInsight)
+        foreach ($VariableConf in $SiteConf)
         {
             if ($VariableConf -like "*InstrumentationKey*" -and $VariableConf -notlike "*http*")
             {
-                $FixRequired += $WebApp | select-object name,resourceGroup,location,Tags,@{Name="ConnectionString"; Expression={($WebApp | Select-Object -ExpandProperty Siteconfig | Select-Object -ExpandProperty appsettings | where name -like "*CONNECTION*").value}},id
+                $FixRequired += $WebAppInsight | select-object name,resourceGroup,location,Tags,@{Name="ConnectionString"; Expression={($WebAppInsight | Select-Object -ExpandProperty Siteconfig | Select-Object -ExpandProperty appsettings | where name -like "*CONNECTION*").value}},id
             }
         }
     }
 }
 
 ### Exporting Log to CSV
-# Mapping export path
-Write-Host "=====================================================" -ForegroundColor Yellow
-Write-Host "Default Export Path: C:\temp (Type Enter for default)" -ForegroundColor Yellow
-Write-Host "=====================================================" -ForegroundColor Yellow
-$CSVPath = Read-Host "Enter the path for the CSV File" -erroraction 'silentlycontinue'
-if (-not $CSVPath)
+if ($FixRequired.Count -eq 0)
 {
-    $CSVPath = "c:\temp"
-    if (!(Test-Path $CSVPath))
+    Write-Host "No AppInsight ConnectionString found" -ForegroundColor Green
+} else {
+    # Mapping export path
+    Write-Host "=====================================================" -ForegroundColor Yellow
+    Write-Host "Default Export Path: C:\temp (Type Enter for default)" -ForegroundColor Yellow
+    Write-Host "=====================================================" -ForegroundColor Yellow
+    $CSVPath = Read-Host "Enter the path for the CSV File" -erroraction 'silentlycontinue'
+    if (-not $CSVPath)
     {
-        New-Item -ItemType Directory -Path $CSVPath
+        $CSVPath = "c:\temp"
+        if (!(Test-Path $CSVPath))
+        {
+            New-Item -ItemType Directory -Path $CSVPath
+        }
     }
-}
 
-# Printing results
-Write-Host "=========================" -ForegroundColor Green
-Write-Host "Pringing log information:" 
-Write-Host "=========================" -ForegroundColor Green
-$FixRequired | ft
-#exporting results to CSV:
-$FixRequired | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_AppInsight_Insights_ConnectionString.csv" -NoTypeInformation
+    # Printing results
+    Write-Host "=========================" -ForegroundColor Green
+    Write-Host "Pringing log information:" 
+    Write-Host "=========================" -ForegroundColor Green
+    $FixRequired | ft
+    #exporting results to CSV:
+    $FixRequired | Export-Csv "$($CSVPath)\$((Get-Date).ToString("yyyyMMdd_HHmmss"))_AppInsight_Insights_ConnectionString.csv" -NoTypeInformation
+}
